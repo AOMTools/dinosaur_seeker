@@ -316,12 +316,21 @@ class ThreadedClient:
         # Terminator
         try:
             pid = sp.check_output("pgrep -f readevents3", stderr=sp.STDOUT, shell=True).decode('utf-8').split()
+            # while (pid!=None):
+            #     for i in range(len(pid)):
+            #         sp.Popen(['kill -9 '+str(pid[i])],shell=True)    # Either -9 or -13
+            #     time.sleep(1)
+            #     try:
+            #         pid = sp.check_output("pgrep -f readevents3", stderr=sp.STDOUT, shell=True).decode('utf-8').split()
+            #     except sp.CalledProcessError:
+            #         pid = None
+            for i in range(len(pid)):
+                sp.Popen(['kill -9 '+str(pid[i])],shell=True)    
+                time.sleep(0.5)
             while (pid!=None):
-                for i in range(len(pid)):
-                    sp.Popen(['kill -9 '+str(pid[i])],shell=True)    # Need -13 as if not the process will be limbo-ing
-                time.sleep(1)
                 try:
                     pid = sp.check_output("pgrep -f readevents3", stderr=sp.STDOUT, shell=True).decode('utf-8').split()
+                    time.sleep(0.1)
                 except sp.CalledProcessError:
                     pid = None
         except:
@@ -387,6 +396,7 @@ class ThreadedClient:
                 self.gui.rec_trigger = 0
                 self.gui.status_button['state'] = 'normal'
                 self.gui.message_display.set("DATA INSUFFICIENT")
+                print "Cannot write to file. Data insufficient."
                 self.gui.message['bg'] = 'white'
                 self.master.update_idletasks()
  
@@ -708,10 +718,6 @@ class ThreadedClient:
                                 else:
                                     self.message_back = 'Not Started'
 
-                        if self.message_a == "Reset":
-                            if self.message_b == "Please":
-                                pass
-
                         if self.message_a == "Change":
                             if self.message_b == "State":
                                 if self.gui.status_button['state'] == 'normal':
@@ -728,6 +734,29 @@ class ThreadedClient:
                                 else:
                                     self.message_back = "Unable Boss"
 
+                        if self.message_a == "Reset":
+                            if self.message_b == "Please":
+                                if self.gui.status == 1 and self.gui.status_button['state'] == 'normal':
+                                    task = 3
+                                    trig = str(self.total_trigger_cases)
+                                    extX = '%.2f'%round(self.ext_est*100,2)
+                                    extdX = '%.2f'%round(self.ext_std*100,2)                                    
+                                    self.message_back = "Okay Trig " + trig + " Ext " + extX + " " + extdX
+                                else:
+                                    self.message_back = "Unable Boss"
+
+                        if self.message_a == "Resav":
+                            folder = self.message_b
+                            self.gui.recdir_entry.delete(0, Tkinter.END)
+                            self.gui.recdir_entry.insert(0, folder)
+                            if self.gui.status == 1 and self.gui.status_button['state'] == 'normal':
+                                task = 4
+                                trig = str(self.total_trigger_cases)
+                                extX = '%.2f'%round(self.ext_est*100,2)
+                                extdX = '%.2f'%round(self.ext_std*100,2)                                    
+                                self.message_back = "Okay Trig " + trig + " Ext " + extX + " " + extdX
+                            else:
+                                self.message_back = "Unable Boss"
 
                     except:
                     # The message is ill defined
@@ -758,6 +787,34 @@ class ThreadedClient:
                     else:
                         print 'Inconsistent state. Dont do two things at the same time!!!'
                     task = 0
+                elif task == 3:
+                    if self.gui.status == 1 and self.gui.status_button['state'] == 'normal':
+                        self.gui.statusChange() # Press the first time
+                        while True:
+                            if self.gui.status_button['state'] == 'normal':
+                                self.gui.statusChange() # Press the second time
+                                break
+                            time.sleep(0.1)    
+                    else: 
+                        print 'Inconsistent state. Dont do two things at the same time!!!'
+                    task = 0
+                elif task == 4:
+                    if self.gui.status == 1 and self.gui.status_button['state'] == 'normal':
+                        self.gui.statusChange() # Press the first time
+                        while True:
+                            if self.gui.rec_button['state'] == 'normal':
+                                self.gui.recordData() # Press the record button
+                                break
+                            time.sleep(0.1)    
+                        while True:
+                            if self.gui.status_button['state'] == 'normal':
+                                self.gui.statusChange() # Press the reset button
+                                break
+                            time.sleep(0.1)    
+                    else: 
+                        print 'Inconsistent state. Dont do two things at the same time!!!'
+                    task = 0
+
 
 
     def endApplication(self):

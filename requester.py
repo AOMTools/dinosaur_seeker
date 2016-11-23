@@ -32,16 +32,32 @@ socket = context.socket(zmq.REQ)
 socket.connect("tcp://localhost:5558")
 
 i = 0
-while i < 100:
+while i < 2:
     i += 1
-    print "Trying..."
-    socket.send("Change State")
+    print "Trying...", i
 
-    #  Get the reply.
-    message = socket.recv()
-    print "Received reply : ", message
-    time.sleep(0.1)
+    while True:
+        socket.send("Restart Please")
+        time.sleep(0.1)
+        #  Get the reply.
+        message = socket.recv()
+        print "Received reply : ", message
+        if message!="Unable Boss":
+            print 'Wait some time to acquire data ...'
+            time.sleep(10)
+            break
 
+    while True:
+    	send = "Resav " + "/home/qitlab/programs/dinosaur_seeker/data/try" + str(i)
+        socket.send(send)
+        time.sleep(0.1)
+        #  Get the reply.
+        message = socket.recv()
+        print "Received reply : ", message
+        if message!="Unable Boss":
+            break
+
+time.sleep(5)
 socket.send("Please Annihilate")
 #  Get the reply.
 message = socket.recv()
