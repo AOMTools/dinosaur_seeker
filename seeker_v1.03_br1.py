@@ -2,10 +2,12 @@
 Created on Thurs Oct 27 2016
 @author: Adrian Utama
 
-Dinosaur Seeker v1.02
+Dinosaur Seeker v1.03 branch 1
 The GUI to monitor the averaged extinction of the atom based on a predefined trigger signal
 1.01: Added functionality of fitting on the go and displaying some relevant values on the GUI. Also fixed some bugs, particularly concerning low trigger counts.
 1.02: Added functionality to save the files, and to communicate with external program (using port 5558)
+1.03: Added a temporary patch to switch off and on the power supply if the memory allocation for the driver fails
+28 Nov - Added in the return value of decay time and yoffset when ask to reset
 
 PS: The Queue function is not (yet) implemented as the subprocess consumes little time/memory. We also do not need to implement the workerthread as there is (not yet) asynchronous communication
 """
@@ -29,6 +31,12 @@ from matplotlib.figure import Figure
 import matplotlib.animation as animation
 import matplotlib.ticker as mtick
 from lmfit import Model
+# <---
+
+# TEMPORARY PATCH ADD ON --->
+from hameg_control import Hameg
+HM_PORTS="/dev/serial/by-id/usb-HAMEG_HAMEG_HO720_013105245-if00-port0"
+HM_PS=Hameg(HM_PORTS)
 # <---
 
 REFRESH_RATE = 100          # 100ms
@@ -316,23 +324,23 @@ class ThreadedClient:
         # Terminator
         try:
             pid = sp.check_output("pgrep -f readevents3", stderr=sp.STDOUT, shell=True).decode('utf-8').split()
-            # while (pid!=None):
-            #     for i in range(len(pid)):
-            #         sp.Popen(['kill -9 '+str(pid[i])],shell=True)    # Either -9 or -13
-            #     time.sleep(1)
-            #     try:
-            #         pid = sp.check_output("pgrep -f readevents3", stderr=sp.STDOUT, shell=True).decode('utf-8').split()
-            #     except sp.CalledProcessError:
-            #         pid = None
-            for i in range(len(pid)):
-                sp.Popen(['kill -9 '+str(pid[i])],shell=True)    
-                time.sleep(0.5)
             while (pid!=None):
+                for i in range(len(pid)):
+                    sp.Popen(['kill -9 '+str(pid[i])],shell=True)    # Either -9 or -13
+                time.sleep(1)
                 try:
                     pid = sp.check_output("pgrep -f readevents3", stderr=sp.STDOUT, shell=True).decode('utf-8').split()
-                    time.sleep(0.1)
                 except sp.CalledProcessError:
                     pid = None
+            #for i in range(len(pid)):
+            #    sp.Popen(['kill -9 '+str(pid[i])],shell=True)    
+            #    time.sleep(0.5)
+            #while (pid!=None):
+            #    try:
+            #        pid = sp.check_output("pgrep -f readevents3", stderr=sp.STDOUT, shell=True).decode('utf-8').split()
+            #        time.sleep(0.1)
+            #    except sp.CalledProcessError:
+            #        pid = None
         except:
             print "Unable to execute command to kill process"
 
@@ -449,6 +457,28 @@ class ThreadedClient:
         startime_proc=time.time()
 
         files = sorted(os.listdir(self.temp_directory))
+
+        # TEMPORARY PATCH ADD ON --->
+        while True:
+	    if len(files) > 0:
+		break
+	    else:
+		self.gui.status_button['state'] = 'disabled'
+		self.master.update_idletasks()
+		self.stopRecording()
+		print "The timestamp file write failed. Trying switching on and off the power supply" 
+		print('Off hameg channel 2')
+		HM_PS.output_off(2)
+		time.sleep(5)
+		print('On hameg channel 2')
+		HM_PS.output_on(2)
+		time.sleep(5)
+		self.startRecording()
+		time.sleep(5)
+		self.gui.status_button['state'] = 'normal'
+		files = sorted(os.listdir(self.temp_directory))
+        # <---
+
         last_file_index = len(files) - 2   # -1 because of how array works in python. -1 again because we want to buffer the last file
 
         # ----- Magical procedures to get the data from the new incoming files -----
@@ -520,7 +550,9 @@ class ThreadedClient:
             endtime = endtime - convratio * (setforward + 5)            # Such that it does not trigger on an unfinished business (+ 5ms for safety)
             trigger_time_index = trigger_time_index[(trigger_time_array > starttime) & (trigger_time_array < endtime)]
             trigger_time_array = trigger_time_array[(trigger_time_array > starttime) & (trigger_time_array < endtime)]
-
+			
+        print trigger_time_index
+        print "Size " + str(trigger_time_index.size)
         # ----- ADDITION ----- : To handle no triggering case
         if trigger_time_index.size > 0:
 
@@ -740,8 +772,12 @@ class ThreadedClient:
                                     task = 3
                                     trig = str(self.total_trigger_cases)
                                     extX = '%.2f'%round(self.ext_est*100,2)
-                                    extdX = '%.2f'%round(self.ext_std*100,2)                                    
-                                    self.message_back = "Okay Trig " + trig + " Ext " + extX + " " + extdX
+                                    extdX = '%.2f'%round(self.ext_std*100,2)  
+                                    yoffX = '%.3f'%round(self.yoff_est,3)
+                                    yoffdX = '%.3f'%round(self.yoff_std,3)
+                                    decX = '%.3f'%round(self.dec_est,3) 
+                                    decdX = '%.3f'%round(self.dec_std,3)                                
+                                    self.message_back = "Okay Trig " + trig + " Ext " + extX + " " + extdX + " Yoff " + yoffX + " " + yoffdX + " Dec " + decX + " " + decdX 
                                 else:
                                     self.message_back = "Unable Boss"
 
@@ -754,7 +790,11 @@ class ThreadedClient:
                                 trig = str(self.total_trigger_cases)
                                 extX = '%.2f'%round(self.ext_est*100,2)
                                 extdX = '%.2f'%round(self.ext_std*100,2)                                    
-                                self.message_back = "Okay Trig " + trig + " Ext " + extX + " " + extdX
+                                yoffX = '%.3f'%round(self.yoff_est,3)
+                                yoffdX = '%.3f'%round(self.yoff_std,3)
+                                decX = '%.3f'%round(self.dec_est,3) 
+                                decdX = '%.3f'%round(self.dec_std,3)                                
+                                self.message_back = "Okay Trig " + trig + " Ext " + extX + " " + extdX + " Yoff " + yoffX + " " + yoffdX + " Dec " + decX + " " + decdX 
                             else:
                                 self.message_back = "Unable Boss"
 
@@ -828,7 +868,10 @@ class ThreadedClient:
 if __name__ == '__main__':
 
     root = Tkinter.Tk(  )
-    root.title("Dinosaur Seeker Version 1.02 Pro")
+    root.title("Dinosaur Seeker Version 1.03 Branch 1 Pro")
+
+    img = Tkinter.PhotoImage(file='icon_xtc.png')
+    root.tk.call('wm', 'iconphoto', root._w, img)
 
     client = ThreadedClient(root)
     root.mainloop(  )

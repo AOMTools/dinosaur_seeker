@@ -31,47 +31,6 @@ print "Connecting to the retreat controller server"
 socket = context.socket(zmq.REQ)
 socket.connect("tcp://localhost:5558")
 
-i = 0
-while i < 100:
-    i += 1
-    print "Trying...", i
-
-    while True:
-        socket.send("Restart Please")
-        time.sleep(0.1)
-        #  Get the reply.
-        message = socket.recv()
-        print "Received reply : ", message
-        if message!="Unable Boss":
-	    time.sleep(0.5)
-            break
-
-    while True:
-        socket.send("Check Trig")
-        time.sleep(0.1)
-        #  Get the reply.
-	try:
-    	    message = socket.recv()
-	    m = message.split()
-    	    trig_num = int(m[1])
-	    if trig_num > 10:
-	        print 'Enough trigger cases'
-	        break
-	except:
-	    pass
-
-    while True:
-    	send = "Reset " + "/home/qitlab/programs/dinosaur_seeker/data/try" + str(i)
-	send = "Reset " + "Please"
-        socket.send(send)
-        time.sleep(0.1)
-        #  Get the reply.
-        message = socket.recv()
-        print "Received reply : ", message
-        if message!="Unable Boss":
-            break
-
-time.sleep(5)
 socket.send("Please Annihilate")
 #  Get the reply.
 message = socket.recv()
