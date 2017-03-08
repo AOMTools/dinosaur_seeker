@@ -1,5 +1,5 @@
 """
-Created on Thurs Jan 15 2016
+Created on March 2017
 @author: Adrian Utama
 
 Dinosaur Seeker v1.04 branch 1 ()
@@ -8,6 +8,7 @@ The GUI to monitor the averaged extinction of the atom based on a predefined tri
 1.02: Added functionality to save the files, and to communicate with external program (using port 5558)
 1.03: Added a temporary patch to switch off and on the power supply if the memory allocation for the driver fails (branch 1)
 1.04: TeFiTi Pattern
+1.05: TriSum (3-sigma) Pattern, with T, F, and R monitoring in one go
 
 PS: The Queue function is not (yet) implemented as the subprocess consumes little time/memory. We also do not need to implement the workerthread as there is (not yet) asynchronous communication
 """
@@ -130,7 +131,7 @@ class GuiPart:
         # R
         self.Rxdata = np.arange(0, MONITORING_WINDOW, 2)
         self.Rydata = np.array([1.] * len(self.Rxdata))
-        self.Rystderr = np.array([0.] * len(self.Rxdata))        
+        self.Rystderr = np.array([0.] * len(self.Rxdata))
 
         self.figure = Figure(figsize=(10, 5))
         self.figure_subplot = self.figure.add_subplot(111)
